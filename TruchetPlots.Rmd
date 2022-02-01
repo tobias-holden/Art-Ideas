@@ -1,0 +1,374 @@
+---
+title: "Customizable Truchet Patterns"
+author: "TH"
+date: "11/15/2021"
+runtime: shiny
+output: flexdashboard::flex_dashboard
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=F, message=F)
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(cowplot)
+library(flexdashboard)
+library(shiny)
+library(ggforce)
+library(utils)
+```
+
+```{r}
+
+TruchetPlot <- function(n_x=2, n_y=2, line_color="white", bg_color="black", style="diagonal", line_size=0.5, seed1=45, seed2=3)
+{
+x0s <- c()
+y0s <- c()
+starts <- c()
+ends <- c()
+xs <- c()
+ys <- c()
+yts <- c()
+xstarts <- c()
+ystarts <- c()
+xends <- c()
+yends <- c()
+
+seeds = matrix(data = sample(seq(0,10^3,1),n_y*n_x,replace = T),nrow = n_y,ncol = n_x)
+for(x.tile in 1:n_x)
+{
+  for(y.tile in 1:n_y)
+  {
+    if(style=="curl")
+    {
+      tiletype <- sample(c(1,2),1,replace=T)
+      xx <- x.tile
+      yy <- y.tile
+      if(tiletype==1)
+      {
+        x0s <- c(x0s,xx-1,xx-0.5,xx,xx-0.5)
+        y0s <- c(y0s,yy-1,yy-1,yy,yy)
+        xends <- c(xends,xx-1,xx-1,xx,xx)
+        yends <- c(yends,yy-0.5,yy-1,yy-0.5,yy)
+      }
+      if(tiletype==2)
+      {
+        x0s <- c(x0s,xx,xx,xx-1,xx-1)
+        y0s <- c(y0s,yy-0.5,yy-1,yy-0.5,yy)
+        xends <- c(xends,xx,xx-0.5,xx-1,xx-0.5)
+        yends <- c(yends,yy-1,yy-1,yy,yy)
+      }
+    }
+    if(style=="diagonal")
+    {
+    tiletype <- sample(c(1,2),1,replace = T)
+    if(tiletype==1)
+    {
+      x0s <- c(x0s,x.tile-1)
+      y0s <- c(y0s,y.tile-1)
+      xs <- c(xs,x.tile)
+      ys <- c(ys,y.tile)
+      
+    }
+    if(tiletype==2)
+    {
+      x0s <- c(x0s,x.tile-1)
+      y0s <- c(y0s,y.tile)
+      xs <- c(xs,x.tile)
+      ys <- c(ys,y.tile-1)
+      
+    }
+    }
+    if(style=="half_circle")
+    {
+    tiletype <- sample(c(1,2),1,replace = T)
+    if(tiletype==1)
+    {
+      x0s <- c(x0s,x.tile-1,x.tile)
+      y0s <- c(y0s,y.tile, y.tile-1)
+      starts <- c(starts,pi/2,3*pi/2)
+      ends <- c(ends,pi,2*pi)
+      
+    }
+    if(tiletype==2)
+    {
+      x0s <- c(x0s,x.tile-1,x.tile)
+      y0s <- c(y0s,y.tile-1, y.tile)
+      starts <- c(starts,0,pi)
+      ends <- c(ends,pi/2,3*pi/2)
+      
+    }
+    }
+    if(style=="corner")
+    {
+    tiletype <- sample(c(1,2,3,4),1,replace = T)
+    if(tiletype==1)
+    {
+      #top right
+      x0s <- c(x0s,x.tile-0.5,x.tile-0.5)
+      y0s <- c(y0s,y.tile-0.5,y.tile-0.5)
+      xs <- c(xs,x.tile-0.5,x.tile)
+      ys <- c(ys,y.tile,y.tile-0.5)
+    }
+    if(tiletype==2)
+    {
+      #bottom right
+      x0s <- c(x0s,x.tile-0.5,x.tile-0.5)
+      y0s <- c(y0s,y.tile-0.5,y.tile-0.5)
+      xs <- c(xs,x.tile-0.5,x.tile)
+      ys <- c(ys,y.tile-1,y.tile-0.5)
+    }
+    if(tiletype==3)
+    {
+      #bottom left
+      x0s <- c(x0s,x.tile-0.5,x.tile-0.5)
+      y0s <- c(y0s,y.tile-0.5,y.tile-0.5)
+      xs <- c(xs,x.tile-0.5,x.tile-1)
+      ys <- c(ys,y.tile-1,y.tile-0.5)
+    }
+    if(tiletype==4)
+    {
+      #top left
+      x0s <- c(x0s,x.tile-0.5,x.tile-0.5)
+      y0s <- c(y0s,y.tile-0.5,y.tile-0.5)
+      xs <- c(xs,x.tile-0.5,x.tile-1)
+      ys <- c(ys,y.tile,y.tile-0.5)
+    }
+    }
+    if(style=="curve and corner")
+    {
+      tileshape <- sample(c("curve","corner"),1,replace=T)
+      tiletype <- sample(c(1,2,3,4),1,replace=T)
+      if(tileshape=="corner")
+      {
+        if(tiletype==1)
+    {
+      #top right
+      x0s <- c(x0s,x.tile-0.5,x.tile-0.5)
+      y0s <- c(y0s,y.tile-0.5,y.tile-0.5)
+      xs <- c(xs,x.tile-0.5,x.tile)
+      ys <- c(ys,y.tile,y.tile-0.5)
+    }
+    if(tiletype==2)
+    {
+      #bottom right
+      x0s <- c(x0s,x.tile-0.5,x.tile-0.5)
+      y0s <- c(y0s,y.tile-0.5,y.tile-0.5)
+      xs <- c(xs,x.tile-0.5,x.tile)
+      ys <- c(ys,y.tile-1,y.tile-0.5)
+    }
+    if(tiletype==3)
+    {
+      #bottom left
+      x0s <- c(x0s,x.tile-0.5,x.tile-0.5)
+      y0s <- c(y0s,y.tile-0.5,y.tile-0.5)
+      xs <- c(xs,x.tile-0.5,x.tile-1)
+      ys <- c(ys,y.tile-1,y.tile-0.5)
+    }
+    if(tiletype==4)
+    {
+      #top left
+      x0s <- c(x0s,x.tile-0.5,x.tile-0.5)
+      y0s <- c(y0s,y.tile-0.5,y.tile-0.5)
+      xs <- c(xs,x.tile-0.5,x.tile-1)
+      ys <- c(ys,y.tile,y.tile-0.5)
+    }
+      }
+      if(tileshape=="curve")
+      {
+        if(tiletype==1)
+        {
+        xstarts <- c(xstarts,x.tile-1)
+        xends <- c(xends,x.tile-0.5)
+        ystarts <- c(ystarts,y.tile-0.5)
+        yends <- c(yends,y.tile-1)
+        }
+        if(tiletype==2)
+        {
+        xstarts <- c(xstarts,x.tile-0.5)
+        xends <- c(xends,x.tile)
+        ystarts <- c(ystarts,y.tile-1)
+        yends <- c(yends,y.tile-0.5)
+        }
+        if(tiletype==3)
+        {
+        xstarts <- c(xstarts,x.tile)
+        xends <- c(xends,x.tile-0.5)
+        ystarts <- c(ystarts,y.tile-0.5)
+        yends <- c(yends,y.tile)
+        }
+        if(tiletype==4)
+        {
+        xstarts <- c(xstarts,x.tile-0.5)
+        xends <- c(xends,x.tile-1)
+        ystarts <- c(ystarts,y.tile)
+        yends <- c(yends,y.tile-0.5)
+        }
+    
+    }
+      }
+    }
+    if(style=="leaf")
+    {
+      set.seed(seeds[x.tile,y.tile])
+      tiletype <- sample(c(1,2,3,4),size=1,replace = T)
+      x.range <- seq(0,0.5,0.01)
+      y.range <- seq(0,0.5,0.01)
+      n <- 3
+      set.seed(sample(c(seed1,seed2),1,replace = T))
+      leafx <- c(0,sample(x.range,n),0.5)
+      leafy <- c(0.5,sample(y.range,n),0)
+      
+     if(tiletype==1){
+       xs <- c(xs,leafx+x.tile-1)
+       ys <- c(ys,leafy+y.tile-1)
+     }
+     if(tiletype==2)
+      {
+        xs <- c(xs,leafx+x.tile-1)
+        yts <-0.5 + (0.5-leafy)
+        ys <- c(ys,yts+y.tile-1)
+      }
+     if(tiletype==3)
+      {
+        xs <- c(xs,x.tile-leafx)
+        ys <- c(ys,y.tile-leafy)
+     }
+      if(tiletype==4)
+      {
+        xs <- c(xs,x.tile-leafx)
+        ys <- c(ys,leafy+y.tile-1)
+      }
+    }
+  }
+
+
+#library(ggforce)
+if(style=="curl")
+{
+  p <- ggplot() + geom_curve(mapping=aes(x=x0s,y=y0s,xend=xends,yend=yends), color=line_color, size=line_size) + theme(panel.background = element_rect(fill=bg_color), panel.grid = element_blank(), axis.text = element_blank(), axis.title=element_blank(), axis.ticks = element_blank())
+}
+if(style=="half_circle")
+  {
+  p <- ggplot() + geom_arc(mapping=aes(x0=x0s, y0=y0s, r=0.5, start=starts, end=ends), color=line_color, size=line_size) + theme(panel.background = element_rect(fill=bg_color), panel.grid = element_blank(), axis.text = element_blank(), axis.title=element_blank(), axis.ticks = element_blank())
+}
+if(style=="diagonal")
+{
+p <- ggplot() + geom_segment(mapping = aes(x=x0s,y=y0s,xend=xs,yend=ys), color=line_color, size=line_size) + theme(panel.background = element_rect(fill=bg_color), panel.grid = element_blank(), axis.text = element_blank(), axis.title=element_blank(), axis.ticks = element_blank())
+}
+if(style=="corner")
+{
+  p <- ggplot() + geom_segment(mapping = aes(x=x0s,y=y0s,xend=xs,yend=ys), color=line_color, size=line_size) + theme(panel.background = element_rect(fill=bg_color), panel.grid = element_blank(), axis.text = element_blank(), axis.title=element_blank(), axis.ticks = element_blank())
+}
+if(style == "leaf")
+{
+  
+  starts.x <- xs[-length(xs)]
+  starts.y <- ys[-length(ys)]
+  ends.x <- xs[-1]
+  ends.y <- ys[-1]
+  
+  p <- ggplot(mapping=aes(x=starts.x[seq_along(starts.x) %% 5 != 0], y=starts.y[seq_along(starts.y) %% 5 != 0], xend=ends.x[seq_along(ends.x) %% 5 != 0], yend=ends.y[seq_along(ends.y) %% 5 != 0])) +
+    geom_curve(color=input$line_color,size=input$line_size) +
+    theme(panel.background = element_rect(fill=bg_color), panel.grid = element_blank(), axis.text = element_blank(), axis.title=element_blank(), axis.ticks = element_blank()) +
+    coord_cartesian(xlim=c(0,n_x),ylim=c(0,n_y))
+}
+if(style=="curve and corner")
+{
+  p <- ggplot() + 
+    geom_curve(mapping=aes(x=xstarts,y=ystarts, xend=xends,yend=yends), color=line_color, size=line_size) +
+    geom_segment(mapping=aes(x=x0s,y=y0s,xend=xs,yend=ys), color=line_color, size=line_size) +
+    theme(panel.background = element_rect(fill=bg_color), panel.grid = element_blank(), axis.text = element_blank(), axis.title=element_blank(), axis.ticks = element_blank())
+}
+
+return(p)
+}
+
+
+```
+
+
+## Inputs {.sidebar}
+
+```{r, echo=F}
+selectInput("style","Pattern Style", choices=c("corner","curve and corner","curl","diagonal","half_circle","leaf"), multiple = F, selectize = F)
+sliderInput("n.tile", "Grid Size", min = 1, max= 100, step = 1, value=5)
+numericInput("seed1","Random Seed 1",min=1,max=NA,value = 45)
+numericInput("seed2","Random Seed 2",min=1,max=NA,value = 3)
+selectInput("bg_color", "Background Color", choices=grDevices::colors(), selectize=F, selected="black", multiple=F)
+selectInput("line_color", "Line Color", choices=grDevices::colors(), selectize=F, selected = "white", multiple = F)
+sliderInput("line_size", "Line Size", min=0.1,max=5, step=0.1, value=0.5)
+```
+
+## Column 2
+
+```{r}
+renderPlot(TruchetPlot(style=input$style, n_x=input$n.tile, n_y=input$n.tile, line_color = input$line_color, bg_color = input$bg_color, line_size=input$line_size, seed1=input$seed1, seed2=input$seed2), width=700, height=700)
+```
+
+
+```{r, include=F, eval=F}
+x.range <- seq(0,0.5,0.01)
+y.range <- seq(0,0.5,0.01)
+n <- 3
+set.seed(45)
+xs <- c(0,sample(x.range,n),0.5)
+ys <- c(0.5,sample(y.range,n),0)
+
+yts <- 0.5 + (0.5-ys)
+
+ggplot(mapping=aes(x=xs[-n-2],y=ys[-n-2], xend=xs[-1],yend=ys[-1])) +
+  geom_curve() +
+  geom_curve(aes(x=1-xts[-n-2], y=1-yts[-n-2], xend=1-xts[-1],yend=1-yts[-1]))
+
+```
+
+```{r,eval=F,include=F}
+
+xx <- 1
+yy <- 1
+
+x0s <- c()
+y0s <- c()
+xends <- c()
+yends <- c()
+tiletype <- 2
+if(tiletype==1)
+{
+x0s <- c(x0s,xx-1,xx-0.5,xx,xx-0.5)
+y0s <- c(y0s,yy-1,yy-1,yy,yy)
+xends <- c(xends,xx-1,xx-1,xx,xx)
+yends <- c(yends,yy-0.5,yy-1,yy-0.5,yy)
+}
+if(tiletype==2)
+{
+x0s <- c(x0s,xx,xx,xx-1,xx-1)
+y0s <- c(y0s,yy-0.5,yy-1,yy-0.5,yy)
+xends <- c(xends,xx,xx-0.5,xx-1,xx-0.5)
+yends <- c(yends,yy-1,yy-1,yy,yy)
+}
+
+ggplot() + geom_curve(mapping=aes(x=x0s,y=y0s,xend=xends,yend=yends))
+
+xx <- 1
+yy <- 1
+
+for(x.tile in xx)
+{
+  for(y.tile in yy)
+  {
+    tileshape <- sample(c("curve","corner"),1,replace = T)
+    tileshape <- "curve"
+    tiletype <- sample(c(1,2,3,4),1,replace=T)
+    tiletype <- 1
+    if(tileshape=="curve")
+    if(tiletype==1)
+    {
+      xends <- c(xends)
+    }
+  }
+}
+```
+

@@ -1,0 +1,589 @@
+---
+title: "Art Ideas"
+author: "Tobias Holden"
+date: "1/25/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache=FALSE, comment="  ", prompt = TRUE)
+
+
+usePackage <- function(p) {
+  if (!is.element(p, installed.packages()[,1]))
+    install.packages(p, dep = TRUE)
+  require(p, character.only = TRUE)
+}
+
+listPackages<-c("knitr", "dplyr", "tidyr", "ggplot2", "gridExtra", "reshape2", "ggthemes", "tcltk", "generativeart","ggforce","patchwork")
+
+sapply(listPackages, usePackage)
+
+options(width = 100)
+```
+
+
+
+```{r}
+
+draw_print <- function(shape="oranges", grid=1, points=3, r=0.1, curvature=0.8)
+{
+    if(shape=="oranges"){
+    cc <- "#ff9d47"
+    bc <- "#5999ff"}
+  if(shape=="lemons"){
+    cc <- "#fff769" 
+    bc <- "#4fab55"
+    curvature <- 0.5}
+  if(shape=="apples"){
+    cc <- "#a80000" 
+    bc <- "#ffef63"
+    points <- 4}
+  if(shape=="grapefruits"){
+    cc <- "#e60054" 
+    bc <- "#ffeba3"
+    points <- 20
+    curvature <- 0}
+  p <- ggplot() + 
+    #theme_void() +
+    coord_fixed(ratio=1,xlim=c(0,grid+1),ylim=c(0,grid+1))
+  ids <- c()
+  xs <- c()
+  ys <- c()
+  xends <- c()
+  yends <- c()
+  leaf_ids <- c()
+  leafxs <- c()
+  leafys <- c()
+  leafxends <- c()
+  leafyends <- c()
+  for(x in 1:grid)
+  {
+    for(y in 1:grid)
+    {
+      theta <-runif(n=1,min=0,max=2*pi)
+      for(level in seq(1,10,0.15))
+      {
+        ids <- c(ids,rep(paste(x,y,sep="-"),points))
+        xs <-  c(xs,x + r/level*cos(seq(from=theta,to=theta+2*pi-pi/points,length.out=points)))
+        ys <-  c(ys,y + r/level*sin(seq(from=theta,to=theta+2*pi-pi/points,length.out=points)))
+        xends <- c(xends,tail(xs,points-1),head(tail(xs,points),1))
+        yends <- c(yends,tail(ys,points-1),head(tail(ys,points),1))
+      }
+      theta2 <-runif(n=1,min=0,max=pi/12)
+      for(level in seq(1,0.8,-0.05))
+      {
+        leaf_ids <- c(leaf_ids, paste(x,y,level,sep="-"),paste(x,y,level,sep="-"))
+        leafxs <- c(leafxs,x+r*cos(theta),x+level*2*r*level*cos(theta+theta2))
+        leafys <- c(leafys,y+r*sin(theta),y+level*2*r*level*sin(theta+theta2))
+      }
+      }
+    }
+        
+  oranges <- data.frame(ids,xs,ys,xends,yends)
+  leaves <- data.frame(leaf_ids,leafxs,leafys)
+
+  for(icon in unique(oranges$ids))
+  {
+    p <- p + geom_curve(data=oranges[oranges$ids==icon,], mapping=aes(x=xs, y=ys, xend=xends, yend=yends), 
+                  curvature = curvature, color=cc)
+  }
+  
+  for(leaf in unique(leaves$leaf_ids))
+  {
+   p <- p + geom_curve(data=leaves[leaves$leaf_ids==leaf,], 
+                       mapping=aes(x=leafxs,y=leafys,xend=rev(leafxs), yend=rev(leafys)),
+                 color="darkgreen")
+  }
+  return(list("o"=oranges,
+              "l"=leaves,
+              "plot"=p +
+                theme(panel.background = element_rect(fill=bc),
+                      panel.grid=element_blank(), 
+                      axis.title = element_blank(),
+                      axis.ticks = element_blank(), 
+                      axis.text = element_blank(),
+                      plot.margin = unit(c(0,0,0,0),"cm"))
+                ))
+}
+
+
+
+lemon <- draw_print(shape="lemons",grid=4, r=0.2)$plot
+orange <- draw_print(shape="oranges",grid=4, r=0.2)$plot
+apple <- draw_print(shape="apples",grid=4, r=0.2)$plot
+grapefruit <- draw_print(shape="grapefruits",grid=4, r=0.2)$plot
+
+(lemon + apple) / (grapefruit + orange)
+
+```
+
+
+```{r}
+
+draw_flowers = function(n_flowers=1, n_leaves=4, leaf_layers=1,  points=6, radius=1, noise=0, grid_size=4, placement="snapped", type="flowers", overlap=FALSE) 
+  {
+    xcenters <- c()
+    ycenters <- c()
+    xs <- c()
+    ys <- c()
+    fs <- c()
+    leaf <- c()
+    leafxs <- c()
+    leafys <- c()
+    centers <- expand.grid(data.frame(x=seq(0.5,grid_size-0.5,1),y=seq(0.5,grid_size-0.5,1)))
+    centers <- centers[sample(nrow(centers),nrow(centers),replace = F),]
+    if(!overlap){centers <- centers[sample(x=nrow(centers), size = n_flowers, replace = F),]}
+    
+    for(f in 1:n_flowers)
+    {
+      if(placement=="random")
+      {
+        x_center <- runif(1,1,grid_size-1)
+        y_center <- runif(1,1,grid_size-1)
+      }
+      
+      if(placement=="snapped")
+      {
+        if(!overlap)
+        {
+          x_center <- centers$x[f]
+          y_center <- centers$y[f]
+        }
+        if(overlap)
+        {
+          x_center <- sample(centers$x,1)
+          y_center <- sample(centers$y,1)
+        }
+      }
+      
+      for(i in 0:(points-1))
+      {
+        xcenters <- c(xcenters,x_center)
+        ycenters <- c(ycenters,y_center)
+        xs <- c(xs,radius*cos(2*pi/points*i) + rnorm(1,mean=0,sd=noise*radius) + x_center)
+        ys <- c(ys,radius*sin(2*pi/points*i) + rnorm(1,mean=0,sd=noise*radius) + y_center)
+        fs <- c(fs,f)
+      }
+      for(layer in 1:leaf_layers)
+      {
+          #leaf.noise <- runif(1,0,2*pi/(n_leaves+1))
+          leaf.noise <- runif(1,0,pi/6)
+          for(l in 1:n_leaves)
+          {
+            leaf <- c(leaf,
+                      paste(f,l,layer,sep="."), 
+                      paste(f,l,layer,sep="."))
+            # leafxs <- c(leafxs,
+            #             radius*cos(2*pi/n_leaves*l + leaf.noise)+x_center,
+            #             0.4*cos(2*pi/n_leaves*l+leaf.noise)+x_center)
+            # leafys <- c(leafys,
+            #             radius*sin(2*pi/n_leaves*l+leaf.noise)+y_center,
+            #             0.4*sin(2*pi/n_leaves*l+leaf.noise)+y_center)
+            leafxs <- c(leafxs,
+                        radius*cos(2*pi + leaf.noise)+x_center,
+                        0.4*cos(2*pi + leaf.noise)+x_center)
+            leafys <- c(leafys,
+                        radius*sin(2*pi+leaf.noise)+y_center,
+                        0.4*sin(2*pi+leaf.noise)+y_center)
+          }
+      }
+      #1 leaves per flower
+      #leaf <- c(leaf,f, f)
+      #leafxs <- c(leafxs, x_center-radius, x_center-0.5 )
+      #leafys <- c(leafys, y_center-radius, y_center-0.5 )
+    }
+    
+   flowers <- data.frame(fs,xs,ys,xcenters,ycenters)
+   leaves <- data.frame(leaf,leafxs,leafys)
+  
+    p <- ggplot() +
+     xlab("") + ylab("") +
+    scale_x_continuous(breaks=seq(0,grid_size,1), position = "bottom") + 
+    scale_y_continuous(breaks=seq(0,grid_size,1),position = "left") +
+      #theme(panel.grid.major.y = element_line(), panel.grid.major.x=element_line()) +
+      coord_cartesian(xlim=c(0,grid_size),ylim=c(0,grid_size)) +
+      theme_void()
+    if(type=="oranges")
+    {
+      # Add flower fill
+    for(f in unique(flowers$fs))
+   {
+      c <- sample(RColorBrewer::brewer.pal(3,"Oranges"),1)
+      p <- p + geom_circle(data=head(flowers[flowers$fs==f,],1), 
+                         aes(x0=xcenters+runif(1,-radius/4,radius/4),
+                             y0=ycenters+runif(1,-radius/4,radius/4),
+                             r=radius),
+                         color = c, fill= c, alpha=0.7)
+    }
+    
+  # Draw Leaves
+    for(l in unique(leaves$leaf))
+    {
+       p <- p + geom_curve(data=leaves[leaves$leaf==l,],
+                           mapping=aes(x=leafxs, xend=leafxs[c(2:length(leafxs),1)], 
+                                       y=leafys, yend=leafys[c(2:length(leafys),1)]),
+                           curvature = 0.3,
+                           color=sample(RColorBrewer::brewer.pal(10,"Greens"),1))
+      #p <- p + geom_polygon(data=leaves[leaves$leaf==l,],
+      #                      mapping=aes(x = leafxs, y=leafys), color="darkgreen")
+    }
+   # Draw Flowers
+    for(f in unique(flowers$fs))
+   {
+     p <- p + geom_curve(data=flowers[flowers$fs==f,],
+                         mapping=aes(x=xs, xend=xs[c(2:length(xs),1)], 
+                                     y=ys, yend=ys[c(2:length(ys),1)],
+                                     color= factor(fs)), 
+                         curvature = 1, 
+                         color = sample(RColorBrewer::brewer.pal(3,"Oranges"),1))
+   }
+      
+    }
+    if(type=="flowers")
+    {
+      # Add flower fill
+    for(f in unique(flowers$fs))
+   {
+      c <- sample(RColorBrewer::brewer.pal(3,"Reds"),1)
+      p <- p + geom_circle(data=head(flowers[flowers$fs==f,],1), 
+                         aes(x0=xcenters+runif(1,-radius/4,radius/4),
+                             y0=ycenters+runif(1,-radius/4,radius/4),
+                             r=radius),
+                         color = c, fill= c, alpha=0.7)
+    }
+    
+  # Draw Leaves
+    for(l in unique(leaves$leaf))
+    {
+       p <- p + geom_curve(data=leaves[leaves$leaf==l,],
+                           mapping=aes(x=leafxs, xend=leafxs[c(2:length(leafxs),1)], 
+                                       y=leafys, yend=leafys[c(2:length(leafys),1)]),
+                           curvature = 0.3,
+                           color=sample(RColorBrewer::brewer.pal(10,"Greens"),1))
+      #p <- p + geom_polygon(data=leaves[leaves$leaf==l,],
+      #                      mapping=aes(x = leafxs, y=leafys), color="darkgreen")
+    }
+   # Draw Flowers
+    for(f in unique(flowers$fs))
+   {
+     p <- p + geom_curve(data=flowers[flowers$fs==f,],
+                         mapping=aes(x=xs, xend=xs[c(2:length(xs),1)], 
+                                     y=ys, yend=ys[c(2:length(ys),1)],
+                                     color= factor(fs)), 
+                         curvature = 1, 
+                         color = sample(RColorBrewer::brewer.pal(3,"Reds"),1))
+   }
+    }
+    if(type=="strawberries")
+    {
+    # Add berry fill
+   #  for(f in unique(flowers$fs))
+   # {
+   #    c <- sample(RColorBrewer::brewer.pal(3,"Reds"),1)
+   #    p <- p + geom_circle(data=head(flowers[flowers$fs==f,],1), 
+   #                       aes(x0=xcenters+runif(1,-radius,radius),
+   #                           y0=ycenters+runif(1,-radius,radius),
+   #                           r=radius),
+   #                       color = c, fill= c, alpha=0.7)
+   #  }
+    
+  # Draw Leaves at Stem
+    for(l in unique(leaves$leaf))
+    {
+       p <- p + geom_curve(data=leaves[leaves$leaf==l,],
+                           mapping=aes(x=leafxs, xend=leafxs[c(2:length(leafxs),1)], 
+                                       y=leafys, yend=leafys[c(2:length(leafys),1)]),
+                           curvature = 0.3,
+                           color=sample(RColorBrewer::brewer.pal(10,"Greens"),1))
+      #p <- p + geom_polygon(data=leaves[leaves$leaf==l,],
+      #                      mapping=aes(x = leafxs, y=leafys), color="darkgreen")
+    }
+   # Draw Berries
+    for(f in unique(flowers$fs))
+   {
+     p <- p + geom_curve(data=flowers[flowers$fs==f,],
+                         mapping=aes(x=xs, xend=xs[c(2:length(xs),1)], 
+                                     y=ys, yend=ys[c(2:length(ys),1)],
+                                     color= factor(fs)), 
+                         curvature = 1.5, 
+                         color = sample(RColorBrewer::brewer.pal(3,"Greys"),1))
+    }
+      # Draw Seeds
+      p <- p + geom_point(data=flowers,
+                          mapping=aes(x=jitter(xcenters, amount = radius), 
+                                      y=jitter(ycenters, amount=radius)),
+                          shape='(')
+    }
+    
+    return(p + theme(legend.position = "none",
+                     panel.background = element_rect(fill="#ed1c35")))
+    return(flowers)
+    return(leaves)
+    
+    
+} 
+
+#draw_flowers(points=3, n_flowers = 200, n_leaves = 1, leaf_layers = 1,  radius = 0.2, grid_size = 4, noise=0.1, overlap = T,type = "strawberries")
+
+
+```
+
+
+```{r}
+
+canvas <- function(height=2, width=2, grid = T)
+{
+  p <- ggplot(mapping=aes(x=seq(width), y=seq(height))) + xlab("") + ylab("")
+  if(grid)
+  {
+    p <-  p + 
+      theme(panel.grid.major = element_line(), 
+            axis.ticks.length = unit(0.1,"cm"),
+            plot.margin = unit(c(1,1,1,1),"cm")) +
+      coord_cartesian(xlim=c(0,width), ylim=c(0,height), expand = F)
+    if(width <= 20){
+      p <- p +
+      scale_x_continuous(breaks=seq(0,width,1),expand = c(0,0)) 
+    }
+    if(height <=20){
+      p <- p + 
+      scale_y_continuous(breaks=seq(0,height,1),expand=c(0,0)) 
+    }
+    if(width > 20) {
+      p <- p +
+      scale_x_continuous(breaks=seq(0,width,5),expand = c(0,0))
+    }
+    if(height > 20) {
+      p <- p + scale_y_continuous(breaks=seq(0,height,5), expand=c(0,0))
+    }
+  }
+  if(!grid)
+  {
+    p <- p + 
+      theme_void() + 
+      coord_cartesian(xlim=c(0,width), ylim=c(0,height), expand = F) +
+      theme(plot.margin = unit(c(1,1,1,1),"cm"))
+
+  }
+  
+  i <- rep(seq(100),100)
+  j <- i[order(i)]
+  pixels <- data.frame(x=i,y=j)
+  
+  output <- list("pixels"=pixels,"canvas"=p)
+  return(output)
+}
+```
+
+
+# A Simple Landscape
+
+```{r}
+b <- canvas(100,100,F)
+
+# Palette
+mypal <- data.frame(class=c("sky","water","splash","sun"),
+           color=c("#daeaed","#5e9beb","#c9f6ff","#ff7424"))
+
+# Paint Strokes
+paint <- b$pixels
+paint$class <- NA
+paint$class[paint$y>90] <- "sky"
+paint$class[paint$y<40] <- sample(c("water","splash"),
+                                  size=sum(paint$y<40),
+                                  replace = T,
+                                  prob=c(0.95,0.05))
+paint$class[paint$y==40] <- "splash"
+sunx <- c()
+suny <- c()
+
+for(t in 0:10)
+{
+  if(t<=4){
+  sunx <- c(sunx,seq(30+t,69-t))
+  suny <- c(suny,rep(41+t,40-2*t))}
+  if(t>4 & t<=7){
+    sunx <- c(sunx,seq(32+t,67-t))
+    suny <- c(suny,rep(41+t,36-2*t))}
+  if(t>7 & t<=9){
+    sunx <- c(sunx,seq(34+t,65-t))
+    suny <- c(suny,rep(41+t,32-2*t))}
+  if(t>9){
+    sunx <- c(sunx,seq(36+t,63-t))
+    suny <- c(suny,rep(41+t,28-2*t))}
+}
+
+for(i in 1:length(sunx))
+{
+  paint$class[paint$x==sunx[i] & paint$y==suny[i]] <- "sun"
+}
+
+paint <- merge(paint,mypal,by="class")
+
+b$canvas + 
+  geom_tile(data=paint, mapping=aes(x=x,y=y,fill=class), color="black") +
+  scale_fill_manual(values=unique(paint$color))
+  
+```
+
+
+```{r}
+xs <- c(seq(50),seq(50))
+ys <- c(rep(10,50),rep(10,50))
+xends <- c(seq(50),10*cos(pi/4)+seq(50))
+yends <- c(rep(0,50),10*sin(pi/4)+rep(10,50))
+
+
+draw_circuit <- function(lines_y=2, lines_x=2, length=1, length.noise=0.5, 
+                         angle1=pi/2, angle2=pi/4, angle.noise1=0, angle.noise2=0, 
+                         coloring="bySegment", palette="Reds", palette.size=1, line.size=1) {
+  
+  palette_max <- RColorBrewer::brewer.pal.info[palette,]$maxcolors
+  plot_palette <- sample(head(RColorBrewer::brewer.pal(palette_max,palette),min(palette.size,palette_max)),
+                         size = (lines_y+1)*(lines_x+1),
+                         replace = T)
+  
+  xs <- c(seq(lines_x))
+  ys <- c(rep(0,lines_x))
+  xends <- c(xs + length * cos(angle1 + runif(1,-angle.noise1,angle.noise1)) * rnorm(1,1,length.noise))
+  yends <- c(ys + length * sin(angle1 + runif(1,-angle.noise1,angle.noise1)) * rnorm(1,1,length.noise))
+  
+  if(lines_y>1)
+  {
+    for(y_level in seq(2,lines_y))
+    {
+      if(y_level %% 2 == 0 )
+        {
+          last.x <- tail(xends, lines_x)
+          last.y <- tail(yends, lines_x)
+          xs <- c(xs,last.x)
+          ys <- c(ys,last.y)
+          xends <- c(xends, last.x + length * cos(angle2 + runif(1,-angle.noise2,angle.noise2)) * rnorm(1,1,length.noise))
+          yends <- c(yends, last.y + length * sin(angle2 + runif(1,-angle.noise2,angle.noise2)) * rnorm(1,1,length.noise))
+        }
+      if(y_level %% 2 == 1) 
+        {
+          last.x <- tail(xends, lines_x)
+          last.y <- tail(yends, lines_x)
+          xs <- c(xs,last.x)
+          ys <- c(ys,last.y)
+          xends <- c(xends, last.x + length * cos(angle1 + runif(1,-angle.noise1,angle.noise1)) * rnorm(1,1,length.noise))
+          yends <- c(yends, last.y + length * sin(angle1 + runif(1,-angle.noise1,angle.noise1)) * rnorm(1,1,length.noise))
+        }
+    }
+  }
+  
+  if(coloring=="bySegment"){toColor <- paste(xs,ys,sep=".")}
+  if(coloring=="byY"){toColor <- factor(ys)}
+  if(coloring=="byX"){toColor <- factor(rep(seq(lines_x),lines_y))}
+  
+  p <- ggplot() +
+    geom_segment(mapping=aes(x=xs,y=ys,xend=xends,yend=yends, color=toColor), 
+                 size=line.size, lineend = "round", alpha=1) + 
+    coord_fixed(ratio = 1) +
+    theme_void() +
+    theme(legend.position="none") +
+    scale_color_manual(values=plot_palette)
+  
+  return(p)
+  
+}
+
+
+
+draw_circuit(lines_y=30,lines_x=30, 
+             length=1, length.noise=0, 
+             angle1=pi/2, angle2= pi/6, angle.noise1 =0, angle.noise2=pi/10,
+             coloring="bySegment", palette="Spectral", palette.size = 12)
+```
+
+
+```{r}
+
+draw_tracks <- function(n_walkers = 1, n_steps = 10, grid_x=10,grid_y=10, palette="Spectral", custom.palette=c())
+{
+  walkers <- c()
+  steps <- c()
+  xs <- c()
+  ys <- c()
+  xends <- c()
+  yends <- c()
+  
+  target.x <- sample(seq(grid_x),size=1)
+  target.y <- sample(seq(grid_y),size=1)
+  
+  for(w in seq(n_walkers))
+  {
+    walkers <- c(walkers,w)
+    steps <- c(steps,1)
+    x0 <- sample(seq(grid_x),size=1)
+    y0 <- sample(seq(grid_y),size=1)
+    xs <- c(xs,x0)
+    ys <- c(ys,y0)
+    new_x <- x0+sample(c(-1,0,1),size=1)
+    new_y <- y0+sample(c(-1,0,1),size=1)
+    xends <- c(xends, ifelse(new_x<=grid_x & new_x>=1, new_x,x0))
+    yends <- c(yends, ifelse(new_y<=grid_y & new_y>=1, new_y,y0))
+    for(step in 2:n_steps)
+    {
+      walkers <- c(walkers,w)
+      steps <- c(steps,step)
+      x0 <- tail(xends,1)
+      y0 <- tail(yends,1)
+      new_x <- x0 + sample(c(-1,0,1),size=1)
+      new_y <- y0 + sample(c(-1,0,1),size=1)
+      
+      xs <- c(xs,x0)
+      ys <- c(ys,y0)
+      xends <- c(xends, ifelse(new_x<=grid_x & new_x>=1, new_x,x0))
+      yends <- c(yends, ifelse(new_y<=grid_y & new_y>=1, new_y,y0))
+    }
+  }
+  
+  paths <- data.frame(walkers,steps,xs,ys,xends,yends)
+  pal.max <- RColorBrewer::brewer.pal.info[palette,"maxcolors"]
+  pal <- RColorBrewer::brewer.pal(pal.max,palette)
+  if(length(custom.palette>0))
+  {
+    pal.max <- length(custom.palette)
+    pal <- custom.palette
+  }
+  
+  crossed <- c()
+  crossed <- which(paths$xends==target.x & paths$yends==target.y)
+  out <- paths[crossed,]
+  if(length(crossed)<1){out <- "No Winners"}
+  if(length(crossed)==1){out <- paste("Walker #", out$walkers, "hit the target at step #", steps, sep=" ")}
+  if(length(crossed)>1){
+    out <- out[order(out$steps, decreasing = F),]
+    out <- out[1,]
+    out <- paste("Walker #", out$walkers, "hit the target at step #", out$steps, sep=" ")
+    }
+  
+  p <- ggplot(paths) +
+    geom_segment(mapping=aes(x=xs,y=ys,xend=xends,yend=yends,color=factor(walkers)),
+                 size=1, alpha=1/(1+log(n_walkers))) +
+    geom_point(mapping=aes(x=target.x, y=target.y)) + 
+    theme_void() +
+    theme(legend.position="none") +
+    scale_x_continuous(breaks=seq(grid_x)) +
+    scale_y_continuous(breaks=seq(grid_y)) + 
+    scale_color_manual(values=rep(pal,trunc(n_walkers/pal.max)+1)) +
+    coord_fixed(xlim = c(0,grid_x), ylim=c(0, grid_y))
+  
+  return(list("map" = p, "results"=out))
+  
+}
+
+neon_pal <- c("#00ff1a","#ff3f00","#fb00ff", "#ffd417","#00ffff")
+
+draw_tracks(n_walkers = 5,
+            n_steps = 5,
+            grid_x = 5,
+            grid_y = 5,
+            palette = "Paired",
+            custom.palette = neon_pal)
+```
+
+

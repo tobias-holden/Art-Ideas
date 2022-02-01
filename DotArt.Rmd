@@ -1,0 +1,73 @@
+---
+title: "GeomArt"
+author: "Tobias Holden"
+date: "10/31/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+constellationPlot <- function(n,shapes,size_max,x_max,y_max, alpha_min,alpha_max, style) {
+  if(style=="spread")
+  {
+    number <- n
+    s <- sample(shapes, number,replace = T)
+    xpos <- runif(number,0,x_max)
+    ypos <- runif(number,0,y_max)
+    transparency <- runif(number,alpha_min,alpha_max)
+    r <- runif(number,0,size_max)
+    theme_set(theme_void())
+    ggplot(mapping=aes(x=xpos,y=ypos )) +
+    geom_point(size=r, pch=s, alpha=transparency, color="white", fill="white") +
+    theme(legend.position = "none", panel.background = element_rect(fill="black"))
+  }
+}
+
+p1 <- constellationPlot(n=100,shapes=c(1,21),size_max = 2,x_max = 5,y_max = 5,alpha_min = 1,alpha_max = 1, style="spread")
+p2 <- constellationPlot(n=200,shapes=c(1,21),size_max = 2,x_max = 5,y_max = 5,alpha_min = 1,alpha_max = 1, style="spread")
+p3 <- constellationPlot(n=500,shapes=c(1,21),size_max = 2,x_max = 5,y_max = 5,alpha_min = 1,alpha_max = 1, style="spread")
+p4 <- constellationPlot(n=1000,shapes=c(1,21),size_max = 2,x_max = 5,y_max = 5,alpha_min = 1,alpha_max = 1, style="spread")
+
+library(patchwork)
+wrap_plots(p1, p2, p3, p4)
+
+
+```
+
+
+```{r}
+ringPlot <- function(radius,size,bg.color="white",dot.color="black")
+{
+  x <- c()
+  y <- c()
+  sz <- c()
+  for(i in 1:length(radius))
+  {
+      circ <- 2*pi*radius[i]
+      n_dot <- circ/((size[i]))
+      thetas <- seq(0+pi/n_dot,2*pi,(2*pi/n_dot))
+      x <- c(x,radius[i]*cos(thetas))
+      y <- c(y,radius[i]*sin(thetas))
+      sz <- c(sz,rep(size[i],length(thetas)))
+  }
+  theme_set(theme_void())
+  ggplot(mapping=aes(x=x,y=y)) +
+    geom_point(pch=21, size=sz, color=dot.color) +
+    theme(panel.background = element_rect(fill=bg.color)) +
+    coord_cartesian(xlim=c(-max(radius)-max(size),max(radius)+max(size)),ylim=c(-max(radius)-max(size),max(radius)+max(size)))
+}
+
+ringPlot(c(5,6),c(4,5))
+
+p1 <- ringPlot(runif(3,1,100),runif(3,1,5),dot.color="white", bg.color="black")
+p2 <- ringPlot(runif(5,1,50),runif(5,1,10),dot.color="red", bg.color="black")
+p3 <- ringPlot(runif(7,1,10),runif(7,1,10),dot.color="red", bg.color="black")
+p4 <- ringPlot(runif(9,1,10),runif(9,1,10),dot.color="white", bg.color="black")
+
+wrap_plots(p1, p2, p3, p4)
+```
+
